@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CYBER WARRIOR | Live Terminal</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: 'Share Tech Mono', monospace;
+      background: #000;
+      color: #00ff99;
+    }
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: url('https://i.ibb.co/x5CgV4S/green-code.gif') center center / cover no-repeat;
+      opacity: 0.08;
+      z-index: 1;
+      pointer-events: none;
+    }
+    #splash {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: #000;
+      display: flex; justify-content: center; align-items: center;
+      z-index: 100;
+    }
+    #splash img {
+      width: 50vmin;
+      animation: splashZoom 60s ease-in-out forwards;
+      filter: drop-shadow(0 0 20px #00ff99);
+    }
+    @keyframes splashZoom {
+      0%,100% { transform: scale(1.5); }
+      50%     { transform: scale(5); }
+    }
+    #logoFixed {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      width: 60px; filter: drop-shadow(0 0 5px #00ff99);
+      display: none; z-index: 50;
+    }
+    #terminal {
+      position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+      width: 90%; max-width: 800px; height: calc(100% - 100px);
+      padding: 20px; box-sizing: border-box;
+      background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);
+      border-radius: 10px; box-shadow: 0 0 15px #00ff99;
+      overflow-y: auto; display: none; z-index: 40;
+    }
+    .line { margin: 5px 0; white-space: pre-wrap; }
+    .neonText {
+      text-shadow: 0 0 5px #00ff99, 0 0 10px #00ff99, 0 0 20px #00ff99;
+    }
+    .cmd-input {
+      width: 100%; background: transparent;
+      border: none; outline: none;
+      color: #00ff99; font-size: 1.1em;
+    }
+    #uploadInput, #citySelect {
+      display: none; margin-top: 10px;
+    }
+    #modalTerminal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.95);
+      backdrop-filter: blur(5px);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 200;
+      color: #00ff99;
+      font-family: 'Share Tech Mono', monospace;
+    }
+    #modalHeader {
+      position: absolute;
+      top: 10px; right: 20px;
+      font-size: 2em;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+      color: #00ff99;
+      filter: drop-shadow(0 0 10px #00ff99);
+    }
+    #modalContent {
+      text-align: center;
+    }
+    #mobeseImage {
+      width: 80vw;
+      max-width: 600px;
+      filter: blur(8px) grayscale(100%);
+      border: 3px solid #00ff99;
+      margin-bottom: 20px;
+      user-select: none;
+      pointer-events: none;
+      transition: filter 1s ease;
+    }
+    #locationCode {
+      font-size: 1.2em;
+      user-select: none;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+<div id="splash">
+  <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS17NH7pIsqoUDEGAw71r5C1h3yWjlaWz_uhg&s" alt="Logo">
+</div>
+<img id="logoFixed" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS17NH7pIsqoUDEGAw71r5C1h3yWjlaWz_uhg&s" alt="Logo">
+<div id="terminal" aria-live="polite"></div>
+<input type="file" id="uploadInput" accept="image/*">
+<select id="citySelect">
+  <option value="">Şehir Seçin</option>
+  <option value="Diyarbakır">Diyarbakır</option>
+</select>
+<div id="modalTerminal" role="dialog" aria-modal="true" aria-labelledby="modalHeader">
+  <div id="modalHeader" title="Kapat">X</div>
+  <div id="modalContent">
+    <img id="mobeseImage" src="" alt="Bulanık MOBESE Görüntüsü">
+    <div id="locationCode"></div>
+  </div>
+</div>
+<audio id="alertSound" src="https://assets.mixkit.co/sfx/preview/mixkit-warning-alarm-buzzer-991.mp3"></audio>
+
+<script>
+  const splash = document.getElementById('splash');
+  const logoFixed = document.getElementById('logoFixed');
+  const terminal = document.getElementById('terminal');
+  const uploadIn = document.getElementById('uploadInput');
+  const citySelect = document.getElementById('citySelect');
+  const modalTerm = document.getElementById('modalTerminal');
+  const modalClose = document.getElementById('modalHeader');
+  const locationCodeDiv = document.getElementById('locationCode');
+  const mobeseImage = document.getElementById('mobeseImage');
+  const alertSound = document.getElementById('alertSound');
+
+  const mobeseImages = [
+    "https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap",
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSwqq_oC1VRquqDme7r1LomR3QI3yh_TL3mpZZGcDHDAtmRq0dSNQ-XaMk&s=10",
+    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSBGSXoOL-8WhG_y8C-j1VOUw9dJ7fiXWrzwQqAG9m8QUuvknR8zW3gxOI&s=10"
+  ];
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  async function write(txt, speed=50){
+    const line = document.createElement('div');
+    line.className = 'line neonText';
+    terminal.appendChild(line);
+    for(let ch of txt){
+      line.innerHTML += ch === '\n' ? '<br>' : ch;
+      await sleep(speed);
+    }
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  function promptInput(ph=''){
+    return new Promise(resolve => {
+      const line = document.createElement('div');
+      line.className = 'line';
+      const inp = document.createElement('input');
+      inp.className = 'cmd-input neonText';
+      inp.placeholder = ph;
+      line.appendChild(inp);
+      terminal.appendChild(line);
+      inp.focus(); terminal.scrollTop = terminal.scrollHeight;
+      inp.addEventListener('keydown', e => {
+        if(e.key === 'Enter'){
+          inp.disabled = true;
+          resolve(inp.value.trim());
+        }
+      });
+    });
+  }
+
+  async function connectingAnimation(durationMs=20000){
+    const line = document.createElement('div');
+    line.className = 'line neonText';
+    terminal.appendChild(line);
+    const baseText = "Veritabanına bağlanılıyor";
+    line.textContent = baseText;
+    const dotsSpan = document.createElement('span');
+    line.appendChild(dotsSpan);
+    const dots = [];
+    for(let i=0; i<3; i++){
+      const span = document.createElement('span');
+      span.textContent = '.';
+      span.style.color = 'transparent';
+      span.style.transition = 'color 0.3s ease';
+      dotsSpan.appendChild(span);
+      dots.push(span);
+    }
+    const cycleDuration = 1500;
+    const totalCycles = Math.floor(durationMs / cycleDuration);
+    for(let cycle=0; cycle<totalCycles; cycle++){
+      for(let i=0; i<3; i++){
+        dots.forEach(d => d.style.color = 'transparent');
+        dots[i].style.color = '#00ff99';
+        await sleep(50000);
+      }
+    }
+    dots.forEach(d => d.style.color = 'transparent');
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  function randomWalk(lat, lon) {
+    const maxStep = 0.0003;
+    const deltaLat = (Math.random() * 2 - 1) * maxStep;
+    const deltaLon = (Math.random() * 2 - 1) * maxStep;
+    return [
+      +(lat + deltaLat).toFixed(6),
+      +(lon + deltaLon).toFixed(6)
+    ];
+  }
+
+  async function simulateLocationSteps(city) {
+    let lat = 37.908801;
+    let lon = 40.222824;
+    const steps = 10;
+    const interval = 18000;
+
+    for(let i = 0; i < steps; i++) {
+      [lat, lon] = randomWalk(lat, lon);
+
+      locationCodeDiv.innerHTML = `
+┏━━━━━━━━━━━━━━━━━━━━━━━┓<br>
+┃➥ LOKASYON KODU: TR-21-DIY-${lat}, ${lon}<br>
+┃➥ Bölge: ${city} <br>
+┃➥ Konum: Kamera - Ana Cadde <br>
+┃➥ Erişim: Sadece izleme modunda<br>
+┗━━━━━━━━━━━━━━━━━━━━━━━┛`;
+
+      const randomImage = mobeseImages[Math.floor(Math.random() * mobeseImages.length)];
+      mobeseImage.src = randomImage;
+      modalTerm.style.display = 'flex';
+      mobeseImage.style.filter = 'blur(8px) grayscale(100%)';
+      let blur = 8;
+      const tracking = setInterval(() => {
+        blur -= 1;
+        mobeseImage.style.filter = `blur(${blur}px) grayscale(100%)`;
+        if (blur <= 0) clearInterval(tracking);
+      }, 10000);
+
+      alertSound.play();
+      await sleep(30000);
+      modalTerm.style.display = 'none';
+
+      await write(`Konum güncellendi: ${lat}, ${lon}`);
+      if(i < steps - 1) await sleep(interval - 30000);
+    }
+    await write("Tüm konum adımları başarıyla simüle edildi.");
+  }
+
+  async function showNetworkTraffic() {
+    const fakeIPs = ['192.168.0.14', '10.0.0.3', '172.16.23.12', '203.0.113.45'];
+    for (let i = 0; i < 10; i++) {
+      const ip = fakeIPs[Math.floor(Math.random() * fakeIPs.length)];
+      const port = Math.floor(Math.random() * (65535 - 1024)) + 1024;
+      await write(`[NET] ${ip}:${port} → bağlantı talebi`);
+      await sleep(10000 + Math.random() * 10000);
+    }
+  }
+
+  async function startSequence(){
+    await sleep(3000);
+    splash.style.display = 'none';
+    logoFixed.style.display = 'block';
+    terminal.style.display = 'block';
+
+    setInterval(() => {
+      document.title = Math.random() > 0.5 ? "⚠️ HACK BAŞLATILDI ⚠️" : "CYBER WARRIOR | Live Terminal";
+    }, 2000);
+
+    await write("Hedef Bulma Simülatörü Başlatılıyor...");
+    await write('"start" yazın ve enter’a basın.');
+    let cmd = await promptInput('start');
+    while(cmd.toLowerCase() !== 'start'){
+      await write('Geçersiz komut. "start" yazmalısınız.');
+      cmd = await promptInput('start');
+    }
+
+    await write('Lütfen 11 haneli TC Kimlik Numaranızı girin:');
+    let tc = await promptInput('TC Kimlik No');
+    while(!/^\d{11}$/.test(tc)){
+      await write('Geçersiz TC Kimlik Numarası. 11 haneli rakam giriniz.');
+      tc = await promptInput('TC Kimlik No');
+    }
+
+    await write(`"${tc}" için sistem ID’si aranıyor...`);
+    await connectingAnimation(20000);
+
+    const userId = 'ID-656590';
+    const dbInfo = `
+╭━━━━━━━━━━━━━━━╮
+┃➥ + Sorgu Başarılı
+╰━━━━━━━━━━━━━━━╯
+╭━━━━━━━━━━━━━━━╮
+┃➥ ID: 2423
+┃➥ TC: ${tc}
+┃➥ ADI: 
+┃➥ SOYADI: 
+┃➥ CİNSİYET: Erkek
+┃➥ DOĞUM TARİHİ: 1975-08-29
+┃➥ NÜFUS İL: Diyarbakır
+┃➥ NÜFUS İLÇE: Sur
+┃➥ ANNE ADI: FELEK
+┃➥ ANNE TC: 24241672222
+┃➥ BABA ADI: ALİ
+┃➥ BABA TC: 24256671722
+┃➥ YAŞ: 50
+╰━━━━━━━━━━━━━━━╯
+ID-2423 upload yazarak fotoğraf yükleyiniz`.trim();
+
+    await write(dbInfo, 5);
+    await write(`Devam etmek için "${userId} upload" yazın ve enter’a basın.`);
+    let up = await promptInput(`${userId} upload`);
+    while(up.toLowerCase() !== `${userId.toLowerCase()} upload`){
+      await write(`Komut hatalı. "${userId} upload" yazmalısınız.`);
+      up = await promptInput(`${userId} upload`);
+    }
+
+    uploadIn.click();
+    const file = await new Promise(resolve => {
+      uploadIn.onchange = () => resolve(uploadIn.files[0]);
+    });
+
+    await write(`"${file.name}" dosyası yüklendi. MOBESE görüntüsü hazırlanıyor...`);
+    await write("Lütfen şehir seçin:");
+    citySelect.style.display = 'block';
+
+    const selectedCity = await new Promise(resolve => {
+      citySelect.addEventListener('change', () => {
+        if (citySelect.value) {
+          citySelect.style.display = 'none';
+          resolve(citySelect.value);
+        }
+      }, { once: true });
+    });
+
+    await write(`Seçilen şehir: ${selectedCity}`);
+    await write("Canlı konum simülasyonu başlatılıyor...");
+    await showNetworkTraffic();
+    await simulateLocationSteps(selectedCity);
+    await write('İşlem tamamlandı. Terminal kapatılıyor...');
+  }
+
+  modalClose.addEventListener('click', () => {
+    modalTerm.style.display = 'none';
+  });
+
+  startSequence();
+</script>
+
+</body>
+</html>
